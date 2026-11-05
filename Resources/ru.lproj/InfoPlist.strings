@@ -1,0 +1,2 @@
+"NSMicrophoneUsageDescription" = "TextCorrect использует микрофон для голосовой диктовки.";
+"NSScreenCaptureUsageDescription" = "TextCorrect делает снимок экрана по вашей команде для анализа изображения.";

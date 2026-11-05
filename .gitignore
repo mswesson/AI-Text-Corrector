@@ -1,0 +1,9 @@
+.build/
+build/
+.swiftpm/
+.DS_Store
+xcuserdata/
+DerivedData/
+
+Sources/TextCorrectSpeech/Resources/*.bin
+Sources/TextCorrectSpeech/Resources/*.download
