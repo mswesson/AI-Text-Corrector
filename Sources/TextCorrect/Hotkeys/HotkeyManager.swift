@@ -8,11 +8,13 @@ final class HotkeyManager {
 
     private var refs: [UInt32: EventHotKeyRef] = [:]
     private var actions: [UInt32: () -> Void] = [:]
+    private var releases: [UInt32: () -> Void] = [:]
     private var handlerRef: EventHandlerRef?
+    private var combinations: Set<KeyCombination> = []
     private var nextID: UInt32 = 1
 
     @discardableResult
-    func register(_ combo: KeyCombination, action: @escaping () -> Void) -> Bool {
+    func register(_ combo: KeyCombination, action: @escaping () -> Void, onRelease: (() -> Void)? = nil) -> Bool {
         installHandlerIfNeeded()
         let id = nextID
         nextID += 1
@@ -26,30 +28,46 @@ final class HotkeyManager {
             &ref
         )
         guard status == noErr, let ref else { return false }
+        combinations.insert(combo)
         refs[id] = ref
         actions[id] = action
+        releases[id] = onRelease
         return true
     }
 
     func unregisterAll() {
         for (_, ref) in refs { UnregisterEventHotKey(ref) }
+        combinations.removeAll()
         refs.removeAll()
         actions.removeAll()
+        releases.removeAll()
         if let handlerRef { RemoveEventHandler(handlerRef) }
         handlerRef = nil
     }
 
+    /// Probes a new system combination without replacing an active registration.
+    func isAvailable(_ combo: KeyCombination) -> Bool {
+        if combinations.contains(combo) { return true }
+        let probe = HotkeyManager()
+        let available = probe.register(combo) {}
+        probe.unregisterAll()
+        return available
+    }
+
     private func installHandlerIfNeeded() {
         guard handlerRef == nil else { return }
-        var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: OSType(kEventHotKeyPressed))
+        var eventTypes = [
+            EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: OSType(kEventHotKeyPressed)),
+            EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: OSType(kEventHotKeyReleased)),
+        ]
         let handler: EventHandlerUPP = { _, event, userData in
             HotkeyManager.dispatch(event: event, userData: userData)
         }
         InstallEventHandler(
             GetApplicationEventTarget(),
             handler,
-            1,
-            &eventType,
+            2,
+            &eventTypes,
             Unmanaged.passUnretained(self).toOpaque(),
             &handlerRef
         )
@@ -68,7 +86,9 @@ final class HotkeyManager {
             &hotKeyID
         )
         let manager = Unmanaged<HotkeyManager>.fromOpaque(userData).takeUnretainedValue()
-        manager.actions[hotKeyID.id]?()
+        if GetEventKind(event) == UInt32(kEventHotKeyReleased) {
+            manager.releases[hotKeyID.id]?()
+        } else { manager.actions[hotKeyID.id]?() }
         return noErr
     }
 

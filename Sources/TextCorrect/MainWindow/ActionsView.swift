@@ -4,14 +4,15 @@ import TextCorrectCore
 struct ActionsView: View {
     @Environment(AppState.self) private var appState
     @State private var editing: Action?
+    @State private var errorMessage: String?
 
     var body: some View {
         VStack(spacing: 0) {
             if appState.actions.actions.isEmpty {
                 ContentUnavailableView(
-                    "Нет сценариев",
+                    tr("Нет сценариев"),
                     systemImage: "bolt",
-                    description: Text("Создайте сценарий для обработки текста.")
+                    description: Text(tr("Создайте сценарий для обработки текста."))
                 )
             } else {
                 List {
@@ -33,20 +34,29 @@ struct ActionsView: View {
                         .contentShape(Rectangle())
                         .onTapGesture(count: 2) { editing = action }
                         .contextMenu {
-                            Button("Изменить") { editing = action }
-                            Button("Дублировать") { try? appState.actions.duplicate(id: action.id) }
-                            Button("Удалить", role: .destructive) {
-                                try? appState.actions.remove(id: action.id)
+                            Button(tr("Изменить")) { editing = action }
+                            Button(tr("Дублировать")) {
+                                do { try appState.actions.duplicate(id: action.id) }
+                                catch { errorMessage = error.localizedDescription }
+                            }
+                            Button(tr("Удалить"), role: .destructive) {
+                                do { try appState.actions.remove(id: action.id) }
+                                catch { errorMessage = error.localizedDescription }
                             }
                         }
                     }
                 }
             }
         }
+        .alert(tr("Не удалось сохранить сценарии"), isPresented: Binding(
+            get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } }
+        )) {
+            Button("OK") { errorMessage = nil }
+        } message: { Text(errorMessage ?? "") }
         .toolbar {
             ToolbarItem {
-                Button { editing = Action(name: "Новый сценарий") } label: {
-                    Label("Добавить", systemImage: "plus")
+                Button { editing = Action(name: tr("Новый сценарий")) } label: {
+                    Label(tr("Добавить"), systemImage: "plus")
                 }
             }
         }
@@ -60,9 +70,10 @@ private struct ActionEditorView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
 
-    private let actionID: UUID
+    private let original: Action
 
     @State private var name: String
+    @State private var description: String
     @State private var mode: Action.Mode
     @State private var systemPrompt: String
     @State private var providerID: UUID?
@@ -71,8 +82,10 @@ private struct ActionEditorView: View {
     @State private var shortcut: KeyCombination?
     @State private var errorMessage: String?
 
+    /// Copies the saved scenario into an editable form.
     init(action: Action) {
-        self.actionID = action.id
+        self.original = action
+        _description = State(initialValue: action.description ?? "")
         _name = State(initialValue: action.name)
         _mode = State(initialValue: action.mode)
         _systemPrompt = State(initialValue: action.systemPrompt)
@@ -85,24 +98,33 @@ private struct ActionEditorView: View {
     var body: some View {
         VStack {
             Form {
-                TextField("Название", text: $name)
-                Picker("Режим", selection: $mode) {
+                TextField(tr("Название"), text: $name)
+                TextField(tr("Описание"), text: $description)
+                Picker(tr("Режим"), selection: $mode) {
                     Text("Transform").tag(Action.Mode.transform)
                     Text("Chat").tag(Action.Mode.chat)
                 }
-                Picker("Провайдер", selection: $providerID) {
+                Picker(tr("Провайдер"), selection: $providerID) {
                     Text("—").tag(UUID?.none)
                     ForEach(appState.providers.providers) { provider in
                         Text(provider.name).tag(UUID?.some(provider.id))
                     }
                 }
+                if let provider = appState.providers.providers.first(where: { $0.id == providerID }) {
+                    Picker(tr("Модель"), selection: $modelID) {
+                        Text(tr("Ввести вручную")).tag("")
+                        ForEach(Array(Set(provider.models + (modelID.isEmpty ? [] : [modelID]))).sorted(), id: \.self) { model in
+                            Text(model).tag(model)
+                        }
+                    }
+                }
                 TextField("Model ID", text: $modelID)
-                Toggle("Требует выделенный текст", isOn: $requiresSelection)
-                Section("Системный промпт") {
+                Toggle(tr("Требует выделенный текст"), isOn: $requiresSelection)
+                Section(tr("Системный промпт")) {
                     TextEditor(text: $systemPrompt)
                         .frame(minHeight: 110)
                 }
-                HotkeyRecorderView(label: "Хоткей", shortcut: $shortcut)
+                HotkeyRecorderView(label: tr("Хоткей"), shortcut: $shortcut)
             }
             .formStyle(.grouped)
 
@@ -115,25 +137,30 @@ private struct ActionEditorView: View {
 
             HStack {
                 Spacer()
-                Button("Отмена") { dismiss() }.keyboardShortcut(.cancelAction)
-                Button("Сохранить") { save() }.keyboardShortcut(.defaultAction)
+                Button(tr("Отмена")) { dismiss() }.keyboardShortcut(.cancelAction)
+                Button(tr("Сохранить")) { save() }.keyboardShortcut(.defaultAction)
             }
             .padding()
         }
         .frame(width: 540, height: 480)
     }
 
+    /// Saves the scenario while preserving its identity and creation date.
     private func save() {
-        var action = Action(
-            id: actionID,
-            name: name,
-            mode: mode,
-            systemPrompt: systemPrompt,
-            providerID: providerID,
-            modelID: modelID,
-            requiresSelection: requiresSelection
-        )
+        guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            errorMessage = tr("Введите название сценария.")
+            return
+        }
+        var action = original
+        action.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        action.description = description.isEmpty ? nil : description
+        action.mode = mode
+        action.systemPrompt = systemPrompt
+        action.providerID = providerID
+        action.modelID = modelID.trimmingCharacters(in: .whitespacesAndNewlines)
+        action.requiresSelection = requiresSelection
         action.shortcut = shortcut
+        action.updatedAt = Date()
         do {
             try appState.upsertAction(action)
             dismiss()

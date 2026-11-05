@@ -1,7 +1,8 @@
+import TextCorrectCore
 import AppKit
 
 final class MenuBarController: NSObject {
-    enum Action { case openMain, openPalette, captureScreen, quit }
+    enum Action { case openMain, openPalette, captureScreen, captureRegion, quit }
 
     private let statusItem: NSStatusItem
     private let onAction: (Action) -> Void
@@ -18,13 +19,14 @@ final class MenuBarController: NSObject {
 
     private func makeMenu() -> NSMenu {
         let menu = NSMenu()
-        addItem("Open AI Palette", #selector(openPalette), "", to: menu)
-        addItem("Open TextCorrect", #selector(openMain), "", to: menu)
-        addItem("Capture Screen", #selector(captureScreen), "", to: menu)
+        addItem(tr("Open AI Palette"), #selector(openPalette), "", to: menu)
+        addItem(tr("Open TextCorrect"), #selector(openMain), "", to: menu)
+        addItem(tr("Capture Screen"), #selector(captureScreen), "", to: menu)
+        addItem(tr("Capture Region…"), #selector(captureRegion), "", to: menu)
         menu.addItem(.separator())
-        addItem("Settings…", #selector(openMain), ",", to: menu)
+        addItem(tr("Settings…"), #selector(openMain), ",", to: menu)
         menu.addItem(.separator())
-        addItem("Quit TextCorrect", #selector(quit), "q", to: menu)
+        addItem(tr("Quit TextCorrect"), #selector(quit), "q", to: menu)
         return menu
     }
 
@@ -37,5 +39,7 @@ final class MenuBarController: NSObject {
     @objc private func openMain() { onAction(.openMain) }
     @objc private func openPalette() { onAction(.openPalette) }
     @objc private func captureScreen() { onAction(.captureScreen) }
+    /// Starts interactive region capture from the menu bar.
+    @objc private func captureRegion() { onAction(.captureRegion) }
     @objc private func quit() { onAction(.quit) }
 }

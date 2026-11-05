@@ -19,11 +19,19 @@ struct ModelListResponse: Decodable {
     var data: [Item]
 }
 
+/// Supplies chat completions independently of the transport.
+public protocol LLMCompleting {
+    /// Returns a completion for the supplied conversation.
+    func complete(_ provider: Provider, model: String, messages: [ChatMessage], apiKey: String?) async throws -> String
+}
+
 /// Asynchronous OpenAI-compatible Chat Completions client.
-public final class LLMClient {
+public final class LLMClient: LLMCompleting {
     private let session: URLSession
+    public var timeout: TimeInterval
 
     public init(timeout: TimeInterval = 120) {
+        self.timeout = timeout
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = timeout
         config.waitsForConnectivity = false
@@ -31,6 +39,9 @@ public final class LLMClient {
     }
 
     public func complete(_ provider: Provider, model: String, messages: [ChatMessage], apiKey: String?) async throws -> String {
+        guard provider.supportsImages(model: model) || !messages.contains(where: { !$0.imageURLs.isEmpty }) else {
+            throw LLMError.imagesUnsupported
+        }
         guard let url = provider.endpoint("chat/completions") else { throw LLMError.invalidURL }
         let request = try makeRequest(url: url, body: ChatRequest(model: model, messages: messages), apiKey: apiKey)
         let (data, response): (Data, URLResponse)
@@ -46,6 +57,7 @@ public final class LLMClient {
     public func listModels(_ provider: Provider, apiKey: String?) async throws -> [String] {
         guard let url = provider.endpoint("models") else { throw LLMError.invalidURL }
         var request = URLRequest(url: url)
+        request.timeoutInterval = timeout
         request.httpMethod = "GET"
         Self.applyAuth(&request, apiKey: apiKey)
         let (data, response): (Data, URLResponse)
@@ -65,6 +77,7 @@ public final class LLMClient {
 
     private func makeRequest<T: Encodable>(url: URL, body: T, apiKey: String?) throws -> URLRequest {
         var request = URLRequest(url: url)
+        request.timeoutInterval = timeout
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         Self.applyAuth(&request, apiKey: apiKey)

@@ -31,7 +31,7 @@ struct KeychainService {
     }
 
     func get(_ key: String) -> String? {
-        var query: [String: Any] = [
+        let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: key,

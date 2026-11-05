@@ -49,4 +49,31 @@ final class StoreTests: XCTestCase {
         XCTAssertEqual(provider.endpoint("chat/completions")?.absoluteString, "http://localhost:1234/v1/chat/completions")
         XCTAssertTrue(provider.isLocal)
     }
+    /// Treats scenarios with equal names as distinct shortcut owners.
+    func testSameNameDoesNotAllowDuplicateShortcut() throws {
+        let state = AppState(directory: tempDir())
+        let combo = KeyCombination(keyCode: 1, modifiers: [.command])
+        try state.upsertAction(Action(name: "Same", shortcut: combo))
+        XCTAssertThrowsError(try state.upsertAction(Action(name: "Same", shortcut: combo)))
+    }
+
+    /// Allows renaming a scenario without rejecting its existing shortcut.
+    func testRenamePreservesShortcut() throws {
+        let state = AppState(directory: tempDir())
+        var action = Action(name: "Before", shortcut: KeyCombination(keyCode: 1, modifiers: [.command]))
+        try state.upsertAction(action)
+        action.name = "After"
+        try state.upsertAction(action)
+        XCTAssertEqual(state.actions.actions.first?.name, "After")
+    }
+
+    /// Keeps persisted settings unchanged when macOS rejects a shortcut.
+    func testUnavailableShortcutIsNotSaved() {
+        let state = AppState(directory: tempDir())
+        let original = state.settings.settings.universalShortcut
+        state.shortcutAvailability = { _ in false }
+        XCTAssertThrowsError(try state.setUniversalShortcut(KeyCombination(keyCode: 1, modifiers: [.command])))
+        XCTAssertEqual(state.settings.settings.universalShortcut, original)
+    }
+
 }

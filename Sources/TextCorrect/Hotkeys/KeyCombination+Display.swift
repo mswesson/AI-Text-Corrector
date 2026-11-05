@@ -11,7 +11,6 @@ extension KeyCombination {
         if flags.contains(.shift)   { mods.insert(.shift) }
         if flags.contains(.option)  { mods.insert(.option) }
         if flags.contains(.control) { mods.insert(.control) }
-        guard event.keyCode > 0 else { return nil }
         self.init(keyCode: event.keyCode, modifiers: mods)
     }
 
@@ -25,7 +24,20 @@ extension KeyCombination {
         return parts.joined()
     }
 
+    /// Gives special keys a readable name before consulting the current keyboard layout.
     static func keyName(for keyCode: UInt16) -> String {
+        switch keyCode {
+        case 49: return "Space"
+        case 36: return "⏎"
+        case 48: return "⇥"
+        case 51: return "⌫"
+        case 53: return "⎋"
+        case 123: return "←"
+        case 124: return "→"
+        case 125: return "↓"
+        case 126: return "↑"
+        default: break
+        }
         var buffer = [UniChar](repeating: 0, count: 4)
         var actual = 0
         if let event = CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(keyCode), keyDown: true) {
@@ -41,13 +53,6 @@ extension KeyCombination {
             let text = String(utf16CodeUnits: buffer, count: actual)
             if !text.isEmpty { return text.uppercased() }
         }
-        switch keyCode {
-        case 49: return "Space"
-        case 36: return "⏎"
-        case 48: return "⇥"
-        case 51: return "⌫"
-        case 53: return "⎋"
-        default: return "⌨\(keyCode)"
-        }
+        return "⌨\(keyCode)"
     }
 }

@@ -9,9 +9,9 @@ struct ProvidersView: View {
         VStack(spacing: 0) {
             if appState.providers.providers.isEmpty {
                 ContentUnavailableView(
-                    "Нет провайдеров",
+                    tr("Нет провайдеров"),
                     systemImage: "server.rack",
-                    description: Text("Подключите OpenAI-совместимый API.")
+                    description: Text(tr("Подключите OpenAI-совместимый API."))
                 )
             } else {
                 List {
@@ -25,8 +25,8 @@ struct ProvidersView: View {
                         .contentShape(Rectangle())
                         .onTapGesture(count: 2) { editing = provider }
                         .contextMenu {
-                            Button("Изменить") { editing = provider }
-                            Button("Удалить", role: .destructive) {
+                            Button(tr("Изменить")) { editing = provider }
+                            Button(tr("Удалить"), role: .destructive) {
                                 try? appState.providers.remove(id: provider.id)
                             }
                         }
@@ -37,7 +37,7 @@ struct ProvidersView: View {
         .toolbar {
             ToolbarItem {
                 Button { editing = Provider(name: "", baseURL: "") } label: {
-                    Label("Добавить", systemImage: "plus")
+                    Label(tr("Добавить"), systemImage: "plus")
                 }
             }
         }
@@ -57,7 +57,7 @@ private struct ProviderEditorView: View {
     @State private var baseURL: String
     @State private var apiKey: String
     @State private var models: [String]
-    @State private var supportsVision: Bool
+    @State private var visionModelIDs: Set<String>
     @State private var newModel = ""
     @State private var status: String?
     @State private var statusIsError = false
@@ -69,25 +69,30 @@ private struct ProviderEditorView: View {
         _baseURL = State(initialValue: provider.baseURL)
         _apiKey = State(initialValue: "")
         _models = State(initialValue: provider.models)
-        _supportsVision = State(initialValue: provider.supportsVision)
+        _visionModelIDs = State(initialValue: Set(provider.visionModelIDs ?? (provider.supportsVision ? provider.models : [])))
     }
 
     var body: some View {
         VStack {
             Form {
-                TextField("Название", text: $name)
+                TextField(tr("Название"), text: $name)
                 TextField("Base URL", text: $baseURL)
-                SecureField("API Key (необязательно)", text: $apiKey)
-                Toggle("Поддержка изображений", isOn: $supportsVision)
-                Section("Модели") {
+                SecureField(tr("API Key (необязательно)"), text: $apiKey)
+                Section(tr("Модели")) {
                     ForEach(models, id: \.self) { model in
-                        Text(model)
+                        Toggle(model + tr(" · Изображения"), isOn: Binding(
+                            get: { visionModelIDs.contains(model) },
+                            set: { enabled in
+                                if enabled { visionModelIDs.insert(model) }
+                                else { visionModelIDs.remove(model) }
+                            }
+                        ))
                     }
                     HStack {
                         TextField("Model ID", text: $newModel)
-                        Button("Добавить") { addModel() }
+                        Button(tr("Добавить")) { addModel() }
                     }
-                    Button("Получить модели с сервера") { Task { await fetchModels() } }
+                    Button(tr("Получить модели с сервера")) { Task { await fetchModels() } }
                         .disabled(isBusy)
                 }
             }
@@ -101,11 +106,11 @@ private struct ProviderEditorView: View {
             }
 
             HStack {
-                Button("Проверить подключение") { Task { await test() } }
+                Button(tr("Проверить подключение")) { Task { await test() } }
                     .disabled(isBusy)
                 Spacer()
-                Button("Отмена") { dismiss() }.keyboardShortcut(.cancelAction)
-                Button("Сохранить") { save() }.keyboardShortcut(.defaultAction)
+                Button(tr("Отмена")) { dismiss() }.keyboardShortcut(.cancelAction)
+                Button(tr("Сохранить")) { save() }.keyboardShortcut(.defaultAction)
             }
             .padding()
         }
@@ -113,12 +118,12 @@ private struct ProviderEditorView: View {
     }
 
     private func draftProvider() -> Provider {
-        Provider(id: providerID, name: name, baseURL: baseURL, models: models, supportsVision: supportsVision)
+        Provider(id: providerID, name: name, baseURL: baseURL, models: models, supportsVision: !visionModelIDs.isEmpty, visionModelIDs: visionModelIDs.sorted())
     }
 
     private func currentAPIKey() -> String? {
         let trimmed = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
+        return trimmed.isEmpty ? appState.providers.apiKey(for: providerID) : trimmed
     }
 
     private func addModel() {
@@ -134,7 +139,7 @@ private struct ProviderEditorView: View {
         defer { isBusy = false }
         do {
             _ = try await LLMClient().listModels(draftProvider(), apiKey: currentAPIKey())
-            setStatus("Подключение успешно.", error: false)
+            setStatus(tr("Подключение успешно."), error: false)
         } catch {
             setStatus(message(for: error), error: true)
         }
@@ -146,7 +151,7 @@ private struct ProviderEditorView: View {
         do {
             let list = try await LLMClient().listModels(draftProvider(), apiKey: currentAPIKey())
             models = list
-            setStatus("Получено моделей: \(list.count).", error: false)
+            setStatus(String(format: tr("Получено моделей: %ld."), list.count), error: false)
         } catch {
             setStatus(message(for: error), error: true)
         }

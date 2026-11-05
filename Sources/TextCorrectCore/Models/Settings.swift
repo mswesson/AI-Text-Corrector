@@ -2,6 +2,9 @@ import Foundation
 
 public struct Settings: Codable, Equatable {
     public var schemaVersion: Int
+    public var hasCompletedOnboarding: Bool?
+    public var preferredProviderID: UUID?
+    public var preferredModelID: String?
     public var universalShortcut: KeyCombination?
     public var captureScreenShortcut: KeyCombination?
     public var pushToTalkShortcut: KeyCombination?

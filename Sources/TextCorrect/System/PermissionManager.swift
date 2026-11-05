@@ -1,3 +1,4 @@
+import TextCorrectCore
 import AppKit
 import ApplicationServices
 import AVFoundation
@@ -11,9 +12,9 @@ final class PermissionManager {
 
         var title: String {
             switch self {
-            case .accessibility: return "Accessibility"
-            case .microphone: return "Microphone"
-            case .screenRecording: return "Screen Recording"
+            case .accessibility: return tr("Accessibility")
+            case .microphone: return tr("Microphone")
+            case .screenRecording: return tr("Screen Recording")
             }
         }
     }

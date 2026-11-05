@@ -24,5 +24,10 @@
 	<string>TextCorrect captures your screen when you request image analysis.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>MIT License</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

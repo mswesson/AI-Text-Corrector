@@ -8,10 +8,13 @@ struct ShortcutsView: View {
     var body: some View {
         @Bindable var settings = appState.settings
         Form {
-            Section("Глобальные сочетания") {
-                HotkeyRecorderView(label: "Универсальная AI-панель", shortcut: universalBinding)
-                HotkeyRecorderView(label: "Захват экрана", shortcut: captureBinding)
+            Section(tr("Глобальные сочетания")) {
+                HotkeyRecorderView(label: tr("Универсальная AI-панель"), shortcut: universalBinding)
+                HotkeyRecorderView(label: tr("Захват экрана"), shortcut: captureBinding)
                 HotkeyRecorderView(label: "Push-to-Talk", shortcut: pushToTalkBinding)
+            }
+            if let registrationError = appState.hotkeyRegistrationError {
+                Text(registrationError).foregroundStyle(.red).font(.caption)
             }
             if let errorMessage {
                 Section {

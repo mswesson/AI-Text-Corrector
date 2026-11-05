@@ -14,13 +14,13 @@ struct HotkeyRecorderView: View {
         HStack {
             Text(label)
             Spacer()
-            Button(recording ? "Нажмите клавиши…" : (shortcut?.displayName ?? "Не назначено")) {
+            Button(recording ? tr("Нажмите клавиши…") : (shortcut?.displayName ?? tr("Не назначено"))) {
                 recording.toggle()
                 if recording { startMonitoring() } else { stopMonitoring() }
             }
             .buttonStyle(.bordered)
             if shortcut != nil {
-                Button("Сбросить") { shortcut = nil }.buttonStyle(.link)
+                Button(tr("Сбросить")) { shortcut = nil }.buttonStyle(.link)
             }
         }
         .onDisappear { stopMonitoring() }

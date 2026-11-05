@@ -8,6 +8,9 @@ public final class AppState {
     public let actions: ActionStore
     public let providers: ProviderStore
     public let settings: SettingsStore
+    public let speechModels: SpeechModelManager
+    public var hotkeyRegistrationError: String?
+    public var shortcutAvailability: ((KeyCombination) -> Bool)?
 
     nonisolated public static func supportDirectory() -> URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -18,13 +21,14 @@ public final class AppState {
         self.actions = ActionStore(directory: directory)
         self.providers = ProviderStore(directory: directory)
         self.settings = SettingsStore(directory: directory)
+        self.speechModels = SpeechModelManager(directory: directory.appendingPathComponent("Models"), settings: settings)
     }
 
     // MARK: - Shortcuts
 
     public func upsertAction(_ action: Action) throws {
         if let combo = action.shortcut {
-            try validate(combo, owner: owner(for: action))
+            try validate(combo, owner: owner(for: action), excludingActionID: action.id)
         }
         try actions.upsert(action)
     }
@@ -47,24 +51,28 @@ public final class AppState {
         try settings.save()
     }
 
+    /// Identifies a scenario independently of its editable name.
     private func owner(for action: Action) -> String {
-        "Сценарий «\(action.name)»"
+        action.id.uuidString
     }
 
-    private func assignedShortcuts() -> [KeyCombination: String] {
+    /// Collects active assignments, optionally excluding the scenario being edited.
+    private func assignedShortcuts(excludingActionID: UUID? = nil) -> [KeyCombination: String] {
         var map: [KeyCombination: String] = [:]
         if let c = settings.settings.universalShortcut { map[c] = "Универсальный хоткей" }
         if let c = settings.settings.captureScreenShortcut { map[c] = "Захват экрана" }
         if let c = settings.settings.pushToTalkShortcut { map[c] = "Push-to-Talk" }
-        for a in actions.actions {
-            if let shortcut = a.shortcut { map[shortcut] = owner(for: a) }
+        for a in actions.actions where a.id != excludingActionID {
+            if let shortcut = a.shortcut { map[shortcut] = "Сценарий «\(a.name)»" }
         }
         return map
     }
 
-    private func validate(_ combo: KeyCombination, owner: String) throws {
-        if let error = HotkeyRegistry.validate(combo, assigned: assignedShortcuts(), owner: owner) {
+    /// Checks internal conflicts and system availability before saving a shortcut.
+    private func validate(_ combo: KeyCombination, owner: String, excludingActionID: UUID? = nil) throws {
+        if let error = HotkeyRegistry.validate(combo, assigned: assignedShortcuts(excludingActionID: excludingActionID), owner: owner) {
             throw error
         }
+        if let shortcutAvailability, !shortcutAvailability(combo) { throw HotkeyError.systemUnavailable }
     }
 }

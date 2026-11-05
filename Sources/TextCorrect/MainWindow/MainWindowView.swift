@@ -1,3 +1,4 @@
+import TextCorrectCore
 import SwiftUI
 
 struct MainWindowView: View {
@@ -22,13 +23,15 @@ struct MainWindowView: View {
         }
     }
 
+    @Environment(AppState.self) private var appState
+    @State private var showOnboarding = false
     @State private var selection: Section = .general
 
     var body: some View {
         NavigationSplitView {
             List(selection: $selection) {
                 ForEach(Section.allCases) { section in
-                    Label(section.rawValue, systemImage: section.icon).tag(section)
+                    Label(tr(section.rawValue), systemImage: section.icon).tag(section)
                 }
             }
             .navigationSplitViewColumnWidth(min: 170, ideal: 200)
@@ -43,5 +46,7 @@ struct MainWindowView: View {
             }
         }
         .frame(minWidth: 720, minHeight: 460)
+        .task { showOnboarding = appState.settings.settings.hasCompletedOnboarding != true }
+        .sheet(isPresented: $showOnboarding) { OnboardingView() }
     }
 }

@@ -1,0 +1,2 @@
+"NSMicrophoneUsageDescription" = "TextCorrect uses the microphone for voice dictation.";
+"NSScreenCaptureUsageDescription" = "TextCorrect captures your screen when you request image analysis.";
