@@ -179,3 +179,4 @@
 "Локальное многоязычное распознавание речи." = "Local multilingual speech recognition.";
 "Многоязычное распознавание на Core ML." = "Multilingual speech recognition with Core ML.";
 "Разрешите универсальный доступ в настройках macOS для безопасной вставки диктовки." = "Allow Accessibility in macOS settings for safe dictation insertion.";
+"Разрешение должно быть выдано этой копии приложения:" = "Grant access to this copy of the application:";

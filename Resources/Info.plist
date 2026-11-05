@@ -17,7 +17,7 @@
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>LSUIElement</key>
-	<true/>
+	<false/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>TextCorrect uses the microphone for voice dictation.</string>
 	<key>NSScreenCaptureUsageDescription</key>

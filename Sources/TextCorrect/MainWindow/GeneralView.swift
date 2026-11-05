@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import TextCorrectCore
 
@@ -36,9 +37,29 @@ private struct PermissionRow: View {
     private let manager = PermissionManager()
 
     @State private var granted: Bool?
-    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            permissionControls
+            if permission == .accessibility, granted == false {
+                Text(tr("Разрешение должно быть выдано этой копии приложения:"))
+                    .font(.caption).foregroundStyle(.secondary)
+                Text(Bundle.main.bundleURL.path)
+                    .font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+            }
+        }
+        .task {
+            while !Task.isCancelled {
+                granted = manager.isGranted(permission)
+                do { try await Task.sleep(for: .seconds(2)) } catch { return }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            granted = manager.isGranted(permission)
+        }
+    }
+
+    private var permissionControls: some View {
         HStack {
             Text(permission.title)
             Spacer()
@@ -52,7 +73,5 @@ private struct PermissionRow: View {
             Button(tr("Настройки…")) { manager.openSystemSettings(permission) }
                 .buttonStyle(.link)
         }
-        .task { granted = manager.isGranted(permission) }
-        .onChange(of: scenePhase) { granted = manager.isGranted(permission) }
     }
 }
